@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(dir /b \"C:\\\\Users\\\\ismai\\\\OneDrive\\\\Documents\\\\BACKUP\\\\L9raya\\\\Spring 2026\\\\CARTIQ-main\\\\components\\\\ui\")",
+      "Bash(dir:*)",
+      "Bash(if not exist \"C:\\\\Users\\\\ismai\\\\OneDrive\\\\Documents\\\\BACKUP\\\\L9raya\\\\Spring 2026\\\\CARTIQ-main\\\\components\\\\ui\" mkdir \"C:\\\\Users\\\\ismai\\\\OneDrive\\\\Documents\\\\BACKUP\\\\L9raya\\\\Spring 2026\\\\CARTIQ-main\\\\components\\\\ui\")",
+      "Bash(npx expo install:*)",
+      "Bash(npx expo start:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(npm install:*)",
+      "Bash(npx next build:*)",
+      "Bash(if exist \".expo\" rmdir /s /q \".expo\")",
+      "Bash(if exist \"node_modules\\\\.cache\" rmdir /s /q \"node_modules\\\\.cache\")",
+      "Bash(head:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx expo export:*)",
+      "Bash(npx expo config --type public)",
+      "Bash(node:*)",
+      "Bash(more:*)"
+    ]
+  }
+}
