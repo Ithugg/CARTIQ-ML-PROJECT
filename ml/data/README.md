@@ -2,7 +2,7 @@
 
 Download the Instacart Online Grocery Market Basket Analysis dataset from Kaggle and place the CSV files in this directory.
 
-**Download:** https://www.kaggle.com/c/instacart-market-basket-analysis/data
+**Download:** https://www.kaggle.com/datasets/yasserh/instacart-online-grocery-basket-analysis-dataset
 
 ## Required Files
 
