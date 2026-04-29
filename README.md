@@ -39,7 +39,7 @@ python app.py        # starts Flask on localhost:5001
 
 The model weights exceed GitHub's file size limit and are hosted separately.
 
-**Download:** [Google Drive — CartIQ model weights](_WEIGHTS_LINK_PLACEHOLDER_)
+**Download:** [Google Drive — CartIQ model weights](https://drive.google.com/drive/folders/1R8dJdM-7xcIz3BOWI6dnddasS_vIRkmc?usp=sharing)
 
 After downloading, extract and place the files in `ml/saved_models/`:
 
