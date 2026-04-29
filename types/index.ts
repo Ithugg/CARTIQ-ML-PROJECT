@@ -113,6 +113,25 @@ export interface PantryItem {
   status: "fresh" | "expiring_soon" | "expired";
 }
 
+export interface Discovery {
+  id: string;
+  itemName: string;
+  category: string;
+  categoryId: string;
+  score: number;
+  estimatedPrice: number;
+  basedOn: string;
+}
+
+export interface NextBasketItem {
+  id: string;
+  itemName: string;
+  category: string;
+  categoryId: string;
+  score: number;
+  estimatedPrice: number;
+}
+
 export type DayOfWeek = "Sun" | "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat";
 
 export interface ShoppingPattern {

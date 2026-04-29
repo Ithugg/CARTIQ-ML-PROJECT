@@ -36,6 +36,7 @@ export default function DashboardScreen() {
   const predictions = usePredictionsStore((s) => s.predictions);
   const reminders = usePredictionsStore((s) => s.reminders);
   const suggestions = usePredictionsStore((s) => s.suggestions);
+  const nextBasket = usePredictionsStore((s) => s.nextBasket);
   const purchases = usePurchaseStore((s) => s.purchases);
   const expiringPantry = usePantryStore((s) => s.getExpiringItems);
   const expiredPantry = usePantryStore((s) => s.getExpiredItems);
@@ -50,6 +51,7 @@ export default function DashboardScreen() {
   );
   const topPredictions = useMemo(() => predictions.slice(0, 5), [predictions]);
   const topSuggestions = useMemo(() => suggestions.slice(0, 6), [suggestions]);
+  const topNextBasket  = useMemo(() => nextBasket.slice(0, 6), [nextBasket]);
   const criticalReminders = useMemo(
     () => reminders.filter((r) => !r.dismissed && (r.urgency === "critical" || r.urgency === "high")),
     [reminders]
@@ -488,6 +490,47 @@ export default function DashboardScreen() {
                 );
               })}
             </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* ─── Next Basket (GRU) ─── */}
+        {purchases.length > 0 && (
+          <Animated.View entering={FadeInDown.delay(650).duration(500)}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="basket" size={18} color={Colors.teal[500]} />
+                <Text style={styles.sectionTitle}>Next Basket</Text>
+              </View>
+            </View>
+            {topNextBasket.length === 0 ? (
+              <View style={styles.nextBasketEmpty}>
+                <Ionicons name="basket-outline" size={28} color={Colors.teal[400]} />
+                <Text style={styles.nextBasketEmptyTitle}>GRU predictions unavailable</Text>
+                <Text style={styles.nextBasketEmptySubtitle}>Start the ML API to see sequence-based predictions</Text>
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: Spacing.xl, gap: Spacing.md }}
+              >
+                {topNextBasket.map((item) => {
+                  const scorePct = (item.score * 100).toFixed(1);
+                  return (
+                    <View key={item.id} style={[styles.predCard, { borderTopWidth: 2, borderTopColor: Colors.teal[400] }]}>
+                      <View style={[styles.predConfidenceBar, { backgroundColor: Colors.teal[500] }]}>
+                        <Text style={styles.predConfidenceText}>{scorePct}%</Text>
+                      </View>
+                      <Text style={styles.predName} numberOfLines={1}>{item.itemName}</Text>
+                      <Text style={styles.predCategory}>{item.category}</Text>
+                      <View style={styles.predPriceRow}>
+                        <Text style={styles.predPrice}>~${item.estimatedPrice.toFixed(2)}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </Animated.View>
         )}
 
@@ -1023,5 +1066,29 @@ const styles = StyleSheet.create({
   sugTagText: {
     ...Typography.caption,
     color: Colors.accent[600],
+  },
+
+  // Next Basket empty state
+  nextBasketEmpty: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.xl,
+    alignItems: "center",
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.teal[50],
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: Colors.teal[100],
+    gap: Spacing.xs,
+  },
+  nextBasketEmptyTitle: {
+    ...Typography.labelSm,
+    color: Colors.teal[600],
+    marginTop: Spacing.xs,
+  },
+  nextBasketEmptySubtitle: {
+    ...Typography.caption,
+    color: Colors.teal[600],
+    textAlign: "center",
   },
 });

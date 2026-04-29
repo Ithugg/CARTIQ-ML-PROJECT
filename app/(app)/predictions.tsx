@@ -24,13 +24,13 @@ import {
 import { useListsStore } from "../../stores/listsStore";
 import { usePredictionsStore } from "../../stores/predictionsStore";
 import { usePurchaseStore } from "../../stores/purchaseStore";
-import type { Prediction, Reminder } from "../../types";
+import type { Prediction, Reminder, Discovery } from "../../types";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-type Tab = "predictions" | "reminders";
+type Tab = "predictions" | "reminders" | "discover";
 
 const URGENCY_COLORS = {
   critical: {
@@ -89,114 +89,78 @@ const CONFIDENCE_COLORS = {
 // Sub-components
 // ---------------------------------------------------------------------------
 
+function SegmentTab({
+  id,
+  activeTab,
+  onTabChange,
+  icon,
+  label,
+  count,
+}: {
+  id: Tab;
+  activeTab: Tab;
+  onTabChange: (tab: Tab) => void;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  label: string;
+  count?: number;
+}) {
+  const isActive = activeTab === id;
+  return (
+    <TouchableOpacity
+      style={[styles.segmentTab, isActive && styles.segmentTabActive]}
+      onPress={() => onTabChange(id)}
+      activeOpacity={0.7}
+    >
+      <Ionicons
+        name={icon}
+        size={14}
+        color={isActive ? Colors.primary[400] : "rgba(255,255,255,0.5)"}
+      />
+      <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>
+        {label}
+      </Text>
+      {count !== undefined && count > 0 && (
+        <View
+          style={[
+            styles.segmentBadge,
+            isActive ? styles.segmentBadgeActive : styles.segmentBadgeInactive,
+          ]}
+        >
+          <Text
+            style={[
+              styles.segmentBadgeText,
+              isActive ? styles.segmentBadgeTextActive : styles.segmentBadgeTextInactive,
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 function SegmentedControl({
   activeTab,
   onTabChange,
   predictionsCount,
   remindersCount,
+  discoveriesCount,
 }: {
   activeTab: Tab;
   onTabChange: (tab: Tab) => void;
   predictionsCount: number;
   remindersCount: number;
+  discoveriesCount: number;
 }) {
   return (
     <View style={styles.segmentedContainer}>
-      <TouchableOpacity
-        style={[
-          styles.segmentTab,
-          activeTab === "predictions" && styles.segmentTabActive,
-        ]}
-        onPress={() => onTabChange("predictions")}
-        activeOpacity={0.7}
-      >
-        <Ionicons
-          name="sparkles"
-          size={16}
-          color={
-            activeTab === "predictions"
-              ? Colors.primary[400]
-              : "rgba(255,255,255,0.5)"
-          }
-        />
-        <Text
-          style={[
-            styles.segmentText,
-            activeTab === "predictions" && styles.segmentTextActive,
-          ]}
-        >
-          Predictions
-        </Text>
-        {predictionsCount > 0 && (
-          <View
-            style={[
-              styles.segmentBadge,
-              activeTab === "predictions"
-                ? styles.segmentBadgeActive
-                : styles.segmentBadgeInactive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentBadgeText,
-                activeTab === "predictions"
-                  ? styles.segmentBadgeTextActive
-                  : styles.segmentBadgeTextInactive,
-              ]}
-            >
-              {predictionsCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[
-          styles.segmentTab,
-          activeTab === "reminders" && styles.segmentTabActive,
-        ]}
-        onPress={() => onTabChange("reminders")}
-        activeOpacity={0.7}
-      >
-        <Ionicons
-          name="notifications"
-          size={16}
-          color={
-            activeTab === "reminders"
-              ? Colors.primary[400]
-              : "rgba(255,255,255,0.5)"
-          }
-        />
-        <Text
-          style={[
-            styles.segmentText,
-            activeTab === "reminders" && styles.segmentTextActive,
-          ]}
-        >
-          Reminders
-        </Text>
-        {remindersCount > 0 && (
-          <View
-            style={[
-              styles.segmentBadge,
-              activeTab === "reminders"
-                ? styles.segmentBadgeActive
-                : styles.segmentBadgeInactive,
-            ]}
-          >
-            <Text
-              style={[
-                styles.segmentBadgeText,
-                activeTab === "reminders"
-                  ? styles.segmentBadgeTextActive
-                  : styles.segmentBadgeTextInactive,
-              ]}
-            >
-              {remindersCount}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      <SegmentTab id="predictions" activeTab={activeTab} onTabChange={onTabChange}
+        icon="sparkles" label="Predictions" count={predictionsCount} />
+      <SegmentTab id="reminders" activeTab={activeTab} onTabChange={onTabChange}
+        icon="notifications" label="Reminders" count={remindersCount} />
+      <SegmentTab id="discover" activeTab={activeTab} onTabChange={onTabChange}
+        icon="compass" label="Discover" count={discoveriesCount} />
     </View>
   );
 }
@@ -534,7 +498,63 @@ function ReminderCard({
   );
 }
 
-function EmptyState({ type }: { type: "no-data" | "no-predictions" | "no-reminders" }) {
+function DiscoveryCard({
+  discovery,
+  onAddToList,
+}: {
+  discovery: Discovery;
+  onAddToList: (itemName: string, estimatedPrice: number) => void;
+}) {
+  const scorePct = Math.round(discovery.score * 100);
+  return (
+    <View style={[styles.predictionCard, Shadows.md]}>
+      <View style={styles.predictionTop}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.predictionName}>{discovery.itemName}</Text>
+          <View style={styles.predictionMeta}>
+            <View style={styles.categoryBadge}>
+              <Ionicons name="pricetag-outline" size={11} color={Colors.accent[500]} />
+              <Text style={styles.categoryText}>{discovery.category}</Text>
+            </View>
+            <View style={[styles.confidenceBadge, { backgroundColor: Colors.purple[50], borderColor: Colors.purple[200] }]}>
+              <Ionicons name="compass" size={12} color={Colors.purple[600]} />
+              <Text style={[styles.confidenceText, { color: Colors.purple[600] }]}>Discovery</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.priceTag}>
+          <Text style={styles.priceLabel}>Est.</Text>
+          <Text style={styles.priceValue}>${discovery.estimatedPrice.toFixed(2)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.probabilityContainer}>
+        <View style={styles.probabilityLabelRow}>
+          <Text style={styles.probabilityLabel}>Similarity</Text>
+          <Text style={[styles.probabilityValue, { color: Colors.purple[500] }]}>{scorePct}%</Text>
+        </View>
+        <View style={styles.probabilityTrack}>
+          <View style={[styles.probabilityFill, { width: `${scorePct}%`, backgroundColor: Colors.purple[500] }]} />
+        </View>
+      </View>
+
+      <Text style={styles.reasonText} numberOfLines={2}>
+        AI-powered discovery based on your overall shopping patterns
+      </Text>
+
+      <TouchableOpacity
+        style={styles.addToListButton}
+        activeOpacity={0.7}
+        onPress={() => onAddToList(discovery.itemName, discovery.estimatedPrice)}
+      >
+        <Ionicons name="add-circle" size={18} color={Colors.primary[600]} />
+        <Text style={styles.addToListText}>Add to List</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function EmptyState({ type }: { type: "no-data" | "no-predictions" | "no-reminders" | "no-discoveries" }) {
   const config = {
     "no-data": {
       icon: "cart-outline" as const,
@@ -550,6 +570,11 @@ function EmptyState({ type }: { type: "no-data" | "no-predictions" | "no-reminde
       icon: "notifications-off-outline" as const,
       title: "All caught up!",
       subtitle: "No reminders right now. We will notify you when items are running low.",
+    },
+    "no-discoveries": {
+      icon: "compass-outline" as const,
+      title: "No discoveries yet",
+      subtitle: "Keep shopping and our AI will suggest new products you might enjoy.",
     },
   };
 
@@ -575,6 +600,7 @@ export default function PredictionsScreen() {
 
   const predictions = usePredictionsStore((s) => s.predictions);
   const reminders = usePredictionsStore((s) => s.reminders);
+  const discoveries = usePredictionsStore((s) => s.discoveries);
   const dismissReminder = usePredictionsStore((s) => s.dismissReminder);
   const isComputing = usePredictionsStore((s) => s.isComputing);
   const purchases = usePurchaseStore((s) => s.purchases);
@@ -648,6 +674,7 @@ export default function PredictionsScreen() {
             onTabChange={setActiveTab}
             predictionsCount={predictions.length}
             remindersCount={activeReminders.length}
+            discoveriesCount={discoveries.length}
           />
         )}
       </LinearGradient>
@@ -678,17 +705,33 @@ export default function PredictionsScreen() {
                 </Animated.View>
               ))
             )
-          ) : activeReminders.length === 0 ? (
-            <EmptyState type="no-reminders" />
+          ) : activeTab === "reminders" ? (
+            activeReminders.length === 0 ? (
+              <EmptyState type="no-reminders" />
+            ) : (
+              activeReminders.map((reminder, index) => (
+                <Animated.View
+                  key={reminder.id}
+                  entering={FadeInDown.delay(index * 80).duration(500)}
+                >
+                  <ReminderCard
+                    reminder={reminder}
+                    onDismiss={dismissReminder}
+                    onAddToList={handleAddToList}
+                  />
+                </Animated.View>
+              ))
+            )
+          ) : discoveries.length === 0 ? (
+            <EmptyState type="no-discoveries" />
           ) : (
-            activeReminders.map((reminder, index) => (
+            discoveries.map((discovery, index) => (
               <Animated.View
-                key={reminder.id}
+                key={discovery.id}
                 entering={FadeInDown.delay(index * 80).duration(500)}
               >
-                <ReminderCard
-                  reminder={reminder}
-                  onDismiss={dismissReminder}
+                <DiscoveryCard
+                  discovery={discovery}
                   onAddToList={handleAddToList}
                 />
               </Animated.View>

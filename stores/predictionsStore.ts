@@ -1,7 +1,8 @@
 import { create } from "zustand";
-import type { Prediction, Reminder, PurchaseRecord, User } from "../types";
+import type { Prediction, Reminder, PurchaseRecord, User, Discovery, NextBasketItem } from "../types";
 import { generatePredictions, generateReminders } from "../services/ml/predictionEngine";
 import { filterPredictions } from "../services/ml/personalization";
+import { fetchDiscoveries, fetchNextBasket } from "../services/ml/mlRecommender";
 import { useAuthStore } from "./authStore";
 
 interface PersonalizedSuggestionItem {
@@ -18,11 +19,13 @@ interface PredictionsState {
   predictions: Prediction[];
   reminders: Reminder[];
   suggestions: PersonalizedSuggestionItem[];
+  discoveries: Discovery[];
+  nextBasket: NextBasketItem[];
   isComputing: boolean;
   lastComputed: string | null;
 
   // Actions
-  compute: (purchases: PurchaseRecord[]) => void;
+  compute: (purchases: PurchaseRecord[]) => Promise<void>;
   dismissReminder: (reminderId: string) => void;
   getTopPredictions: (n?: number) => Prediction[];
   getActiveReminders: () => Reminder[];
@@ -33,14 +36,16 @@ export const usePredictionsStore = create<PredictionsState>((set, get) => ({
   predictions: [],
   reminders: [],
   suggestions: [],
+  discoveries: [],
+  nextBasket: [],
   isComputing: false,
   lastComputed: null,
 
-  compute: (purchases) => {
+  compute: async (purchases) => {
     set({ isComputing: true });
 
-    // Run prediction engine
-    let predictions = generatePredictions(purchases);
+    // Run GBDT API (falls back to rule-based if API is down)
+    let predictions = await generatePredictions(purchases);
     const reminders = generateReminders(purchases);
 
     // Apply personalization filters based on user profile
@@ -56,10 +61,18 @@ export const usePredictionsStore = create<PredictionsState>((set, get) => ({
       suggestions = getPersonalizedSuggestions(user, [], purchases);
     }
 
+    // NCF discovery + GRU next-basket (fire together, ignore failures)
+    const [discoveries, nextBasket] = await Promise.all([
+      fetchDiscoveries(purchases),
+      fetchNextBasket(purchases),
+    ]);
+
     set({
       predictions,
       reminders,
       suggestions,
+      discoveries,
+      nextBasket,
       isComputing: false,
       lastComputed: new Date().toISOString(),
     });

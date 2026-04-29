@@ -1,50 +1,104 @@
-# Welcome to your Expo app 👋
+# CartIQ — ML-Powered Grocery Intelligence
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CartIQ is a React Native (Expo) grocery assistant app with three integrated ML models:
 
-## Get started
+| Model | Purpose | Endpoint |
+|---|---|---|
+| LightGBM (GBDT) | Reorder probability per item | `POST /predict` |
+| GRU | Next-basket sequence prediction | `POST /recommend/gru` |
+| NCF | Discovery recommendations (collaborative filtering) | `POST /recommend/ncf` |
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Quick Start
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### 1. Install app dependencies
 ```bash
-npm run reset-project
+npm install
+npx expo start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Set up the ML API
+```bash
+cd ml/api
+pip install -r requirements.txt
+python app.py        # starts Flask on localhost:5001
+```
 
-## Learn more
+### 3. Get the Instacart dataset (required for ML API)
 
-To learn more about developing your project with Expo, look at the following resources:
+The three large Instacart CSV files are not in this repo due to GitHub file size limits. Download them from Kaggle:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+**Download:** https://www.kaggle.com/c/instacart-market-basket-analysis/data
 
-## Join the community
+After extracting, place these files in `ml/data/`:
 
-Join our community of developers creating universal apps.
+```
+ml/data/
+├── orders.csv                   (~3.4M rows, 104 MB)  ← download from Kaggle
+├── order_products__prior.csv    (~32M rows, 551 MB)   ← download from Kaggle
+├── order_products__train.csv    (~1.4M rows, 24 MB)   ← download from Kaggle
+├── products.csv                 (included in repo)
+├── departments.csv              (included in repo)
+└── aisles.csv                   (included in repo)
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+> The ML API only needs `products.csv` and `departments.csv` at runtime.
+> The large files are only needed if you want to re-train the models.
+
+### 4. Trained model weights (included in repo)
+
+The trained model weights are committed directly and require no extra download:
+
+```
+ml/saved_models/
+├── lightgbm_model.txt     (32 KB)
+├── ncf_weights.pt         (63 MB)
+├── ncf_id_maps.pkl        (5.7 MB)
+└── gru_weights.pt         (38 MB)
+```
+
+> A Random Forest model (~24 GB) was also evaluated but is not used in production.
+> Contact the team if you need it.
+
+---
+
+## Project Structure
+
+```
+├── app/                    # Expo Router screens
+│   └── (app)/
+│       ├── dashboard.tsx   # Home — predictions + next basket
+│       └── predictions.tsx # Tabs: predictions / reminders / discover
+├── ml/
+│   ├── api/                # Flask API (Python)
+│   │   ├── app.py
+│   │   ├── gru_recommender.py
+│   │   ├── ncf_recommender.py
+│   │   ├── product_matcher.py
+│   │   └── requirements.txt
+│   ├── data/               # CSV data files (large ones excluded from git)
+│   ├── notebooks/          # Training notebooks
+│   └── saved_models/       # Trained weights
+├── services/
+│   └── ml/
+│       ├── predictionEngine.ts   # GBDT reorder predictions
+│       └── mlRecommender.ts      # GRU + NCF API calls
+├── stores/
+│   └── predictionsStore.ts
+├── scripts/
+│   └── seedYunusData.mjs   # Demo data seeder
+└── types/index.ts
+```
+
+## Re-training Models
+
+Training notebooks are in `ml/notebooks/`. You need the full Instacart dataset (above) to re-train. The notebooks output weights to `ml/saved_models/`.
+
+## Seeding Demo Data
+
+```bash
+node scripts/seedYunusData.mjs <firebase-email> <firebase-password>
+```
+
+Populates ~2000 purchase records across 32 weeks for demo purposes.

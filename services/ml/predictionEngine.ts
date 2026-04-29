@@ -1,19 +1,15 @@
 /**
- * CartIQ Smart Prediction Engine
+ * CartIQ Prediction Engine
  *
- * Rule-based prediction system structured to mirror real ML approaches:
- * - Frequency Score (simulates GBDT feature importance)
- * - Recency Score (simulates time-decay features)
- * - Pattern Score (simulates sequential/GRU patterns)
- * - Combined ensemble score
- *
- * Designed so that swapping in real ML models later requires
- * only changing the scoring functions, not the data pipeline.
+ * Calls the local LightGBM GBDT API (ml/api/app.py) for predictions.
+ * Falls back to the rule-based engine when the API is unreachable.
  */
 
 import type { PurchaseRecord, Prediction, Reminder } from "../../types";
 import { estimatePrice } from "../../data/prices";
 import { mapIngredientToCategory } from "../../data/categories";
+
+const ML_API_URL = "http://localhost:5001";
 
 interface ItemAggregation {
   name: string;
@@ -153,46 +149,122 @@ function generateReason(item: ItemAggregation, scores: Prediction["scores"]): st
   return parts.join(". ");
 }
 
-export function generatePredictions(purchases: PurchaseRecord[]): Prediction[] {
-  if (purchases.length === 0) return [];
+// ─── Rule-based engine (fallback) ────────────────────────────────────────────
 
+function generateRuleBasedPredictions(purchases: PurchaseRecord[]): Prediction[] {
   const aggregations = aggregatePurchases(purchases);
 
-  const predictions: Prediction[] = aggregations
+  return aggregations
     .map((item) => {
-      const freq = frequencyScore(item);
+      const freq    = frequencyScore(item);
       const recency = recencyScore(item);
       const pattern = patternScore(item);
-
-      // Weighted ensemble — recency matters most for "what to buy next"
       const combined = freq * 0.25 + recency * 0.45 + pattern * 0.30;
       const probability = Math.min(Math.round(combined * 100) / 100, 0.99);
 
       const scores = {
         frequency: Math.round(freq * 100) / 100,
-        recency: Math.round(recency * 100) / 100,
-        pattern: Math.round(pattern * 100) / 100,
-        combined: probability,
+        recency:   Math.round(recency * 100) / 100,
+        pattern:   Math.round(pattern * 100) / 100,
+        combined:  probability,
       };
 
       return {
-        id: `pred_${item.name.toLowerCase().replace(/\s+/g, "_")}`,
-        itemName: item.name,
-        category: item.category,
-        categoryId: item.categoryId,
+        id:                       `pred_${item.name.toLowerCase().replace(/\s+/g, "_")}`,
+        itemName:                 item.name,
+        category:                 item.category,
+        categoryId:               item.categoryId,
         probability,
-        confidence: getConfidence(probability, item.purchaseCount),
-        reason: generateReason(item, scores),
-        estimatedPrice: item.avgPrice || estimatePrice(item.name, item.categoryId),
-        avgDaysBetweenPurchases: item.avgDaysBetweenPurchases,
-        daysSinceLastPurchase: item.daysSinceLastPurchase,
-        purchaseCount: item.purchaseCount,
+        confidence:               getConfidence(probability, item.purchaseCount),
+        reason:                   generateReason(item, scores),
+        estimatedPrice:           item.avgPrice || estimatePrice(item.name, item.categoryId),
+        avgDaysBetweenPurchases:  item.avgDaysBetweenPurchases,
+        daysSinceLastPurchase:    item.daysSinceLastPurchase,
+        purchaseCount:            item.purchaseCount,
         scores,
       };
     })
     .sort((a, b) => b.probability - a.probability);
+}
 
-  return predictions;
+// ─── ML API call ──────────────────────────────────────────────────────────────
+
+interface ApiPrediction {
+  itemName:                string;
+  category:                string;
+  categoryId:              string;
+  probability:             number;
+  purchaseCount:           number;
+  avgDaysBetweenPurchases: number;
+  daysSinceLastPurchase:   number;
+  estimatedPrice:          number;
+}
+
+function mapApiPrediction(p: ApiPrediction): Prediction {
+  const probability = Math.min(Math.round(p.probability * 100) / 100, 0.99);
+  const ratio       = p.daysSinceLastPurchase / Math.max(p.avgDaysBetweenPurchases, 1);
+
+  const freq    = Math.min(0.3 + 0.7 * Math.min(p.purchaseCount / 10, 1), 1);
+  const recency = ratio >= 1.5 ? 0.95 : ratio >= 1.0 ? 0.85 : ratio >= 0.8 ? 0.7 : ratio >= 0.5 ? 0.5 : 0.3;
+
+  const reason = [
+    p.daysSinceLastPurchase >= p.avgDaysBetweenPurchases
+      ? `Last purchased ${Math.round(p.daysSinceLastPurchase)} days ago (avg cycle: ${Math.round(p.avgDaysBetweenPurchases)}d)`
+      : null,
+    p.purchaseCount >= 5
+      ? `Bought ${p.purchaseCount} times — a regular purchase`
+      : p.purchaseCount >= 3
+      ? `Bought ${p.purchaseCount} times`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(". ") || "Based on your purchase history";
+
+  return {
+    id:                       `pred_${p.itemName.toLowerCase().replace(/\s+/g, "_")}`,
+    itemName:                 p.itemName,
+    category:                 p.category,
+    categoryId:               p.categoryId,
+    probability,
+    confidence:               getConfidence(probability, p.purchaseCount),
+    reason,
+    estimatedPrice:           p.estimatedPrice,
+    avgDaysBetweenPurchases:  Math.round(p.avgDaysBetweenPurchases),
+    daysSinceLastPurchase:    Math.round(p.daysSinceLastPurchase),
+    purchaseCount:            p.purchaseCount,
+    scores: {
+      frequency: Math.round(freq * 100) / 100,
+      recency,
+      pattern:   0,
+      combined:  probability,
+    },
+  };
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export async function generatePredictions(purchases: PurchaseRecord[]): Promise<Prediction[]> {
+  if (purchases.length === 0) return [];
+
+  try {
+    const response = await fetch(`${ML_API_URL}/predict`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ purchases }),
+      signal:  AbortSignal.timeout(8000),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data.predictions) && data.predictions.length > 0) {
+        return data.predictions.map(mapApiPrediction);
+      }
+    }
+  } catch {
+    // API unavailable — fall through to rule-based engine
+  }
+
+  return generateRuleBasedPredictions(purchases);
 }
 
 export function generateReminders(purchases: PurchaseRecord[]): Reminder[] {

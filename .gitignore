@@ -14,3 +14,10 @@ dist/
 .env.local
 .claude/
 .claude-flow/
+
+# ML generated artifacts
+ml/features/
+ml/saved_models/
+ml/data/orders.csv
+ml/data/order_products__prior.csv
+ml/data/order_products__train.csv
