@@ -15,6 +15,11 @@ dist/
 .claude/
 .claude-flow/
 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
 # ML generated artifacts
 ml/features/
 ml/saved_models/

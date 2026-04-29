@@ -8,6 +8,15 @@ CartIQ is a React Native (Expo) grocery assistant app with three integrated ML m
 | GRU | Next-basket sequence prediction | `POST /recommend/gru` |
 | NCF | Discovery recommendations (collaborative filtering) | `POST /recommend/ncf` |
 
+A fourth model (Random Forest) was trained and evaluated for comparison but is not deployed.
+
+---
+
+## Requirements
+
+- **Python 3.13+**
+- **Node.js 18+**
+
 ---
 
 ## Quick Start
@@ -19,15 +28,34 @@ npx expo start
 ```
 
 ### 2. Set up the ML API
+
 ```bash
 cd ml/api
 pip install -r requirements.txt
 python app.py        # starts Flask on localhost:5001
 ```
 
-### 3. Get the Instacart dataset (required for ML API)
+### 3. Download trained model weights
 
-The three large Instacart CSV files are not in this repo due to GitHub file size limits. Download them from Kaggle:
+The model weights exceed GitHub's file size limit and are hosted separately.
+
+**Download:** [Google Drive — CartIQ model weights](_WEIGHTS_LINK_PLACEHOLDER_)
+
+After downloading, extract and place the files in `ml/saved_models/`:
+
+```
+ml/saved_models/
+├── lightgbm_model.txt     (32 KB)
+├── ncf_weights.pt         (63 MB)
+├── ncf_id_maps.pkl        (5.7 MB)
+└── gru_weights.pt         (38 MB)
+```
+
+Once weights are in place, `python ml/api/app.py` will load them automatically.
+
+### 4. Get the Instacart dataset (required only for re-training)
+
+The three large Instacart CSV files are not in this repo. Download them from Kaggle:
 
 **Download:** https://www.kaggle.com/datasets/yasserh/instacart-online-grocery-basket-analysis-dataset
 
@@ -43,57 +71,61 @@ ml/data/
 └── aisles.csv                   (included in repo)
 ```
 
-> The ML API only needs `products.csv` and `departments.csv` at runtime.
-> The large files are only needed if you want to re-train the models.
+---
 
-### 4. Trained model weights (included in repo)
+## Running the Experiments
 
-The trained model weights are committed directly and require no extra download:
+All training and evaluation notebooks are in `notebooks/` (project root):
 
-```
-ml/saved_models/
-├── lightgbm_model.txt     (32 KB)
-├── ncf_weights.pt         (63 MB)
-├── ncf_id_maps.pkl        (5.7 MB)
-└── gru_weights.pt         (38 MB)
-```
+| Notebook | Description |
+|---|---|
+| `01_data_preparation.ipynb` | Load and explore the Instacart dataset |
+| `02_feature_engineering.ipynb` | Build user/product/interaction feature matrix |
+| `03_models_rf_gbdt.ipynb` | Train Random Forest and LightGBM (GBDT); Optuna tuning; SHAP analysis |
+| `04_ncf.ipynb` | Train Neural Collaborative Filtering model |
+| `05_gru_sequential.ipynb` | Train GRU next-basket sequence model |
+| `06_evaluation_comparison.ipynb` | Unified model comparison, cold-start analysis, error characterisation |
 
-> A Random Forest model (~24 GB) was also evaluated but is not used in production.
-> Contact the team if you need it.
+Run notebooks in order (01 → 06). Each notebook saves intermediate outputs to `ml/features/` and final weights to `ml/saved_models/`.
+
+> `ml/notebooks/` contains development/working versions of the same notebooks used during the Flask API integration phase.
 
 ---
 
 ## Project Structure
 
 ```
-├── app/                    # Expo Router screens
+├── notebooks/              # Course experiment notebooks (01–06, run these)
+├── app/                    # Expo Router screens (React Native)
 │   └── (app)/
 │       ├── dashboard.tsx   # Home — predictions + next basket
 │       └── predictions.tsx # Tabs: predictions / reminders / discover
 ├── ml/
-│   ├── api/                # Flask API (Python)
+│   ├── api/                # Flask API (Python 3.13)
 │   │   ├── app.py
 │   │   ├── gru_recommender.py
 │   │   ├── ncf_recommender.py
 │   │   ├── product_matcher.py
 │   │   └── requirements.txt
 │   ├── data/               # CSV data files (large ones excluded from git)
-│   ├── notebooks/          # Training notebooks
-│   └── saved_models/       # Trained weights
+│   ├── models/             # PyTorch model class definitions
+│   │   ├── gru.py
+│   │   └── ncf.py
+│   ├── notebooks/          # Development/API-integration notebooks
+│   ├── outputs/            # Training plots and result JSONs
+│   ├── saved_models/       # Trained weights (download separately — see above)
+│   └── utils/
+│       └── metrics.py
 ├── services/
 │   └── ml/
 │       ├── predictionEngine.ts   # GBDT reorder predictions
 │       └── mlRecommender.ts      # GRU + NCF API calls
 ├── stores/
 │   └── predictionsStore.ts
-├── scripts/
-│   └── seedYunusData.mjs   # Demo data seeder
 └── types/index.ts
 ```
 
-## Re-training Models
-
-Training notebooks are in `ml/notebooks/`. You need the full Instacart dataset (above) to re-train. The notebooks output weights to `ml/saved_models/`.
+---
 
 ## Seeding Demo Data
 
