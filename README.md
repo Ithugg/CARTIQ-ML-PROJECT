@@ -35,23 +35,25 @@ pip install -r requirements.txt
 python app.py        # starts Flask on localhost:5001
 ```
 
-### 3. Download trained model weights
+### 3. Download the complete `ml/` folder
 
-The model weights exceed GitHub's file size limit and are hosted separately.
+Large files (model weights, feature matrices) exceed GitHub's file size limit and are hosted on Google Drive.
 
-**Download:** [Google Drive — CartIQ model weights](https://drive.google.com/drive/folders/1R8dJdM-7xcIz3BOWI6dnddasS_vIRkmc?usp=sharing)
+**Download:** [Google Drive — CartIQ `ml/` folder](https://drive.google.com/drive/folders/1R8dJdM-7xcIz3BOWI6dnddasS_vIRkmc?usp=sharing)
 
-After downloading, extract and place the files in `ml/saved_models/`:
+Download the folder and place it at the project root, replacing the existing `ml/` directory. It includes:
 
 ```
-ml/saved_models/
-├── lightgbm_model.txt     (32 KB)
-├── ncf_weights.pt         (63 MB)
-├── ncf_id_maps.pkl        (5.7 MB)
-└── gru_weights.pt         (38 MB)
+ml/
+├── saved_models/
+│   ├── lightgbm_model.txt     (32 KB)
+│   ├── ncf_weights.pt         (63 MB)
+│   ├── ncf_id_maps.pkl        (5.7 MB)
+│   └── gru_weights.pt         (38 MB)
+└── features/                  (pre-computed feature matrices for re-training)
 ```
 
-Once weights are in place, `python ml/api/app.py` will load them automatically.
+Once in place, `python ml/api/app.py` will load the weights automatically.
 
 ### 4. Get the Instacart dataset (required only for re-training)
 
